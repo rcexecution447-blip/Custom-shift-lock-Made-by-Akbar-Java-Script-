@@ -1,0 +1,191 @@
+--[[ 
+    ULTIMATE SHIFT LOCK - AKBAR EDITION (FIXED STUTTER & LONG PRESS MENU)
+    Aset Ikon: Custom Request
+    Logic: Smooth Roblox Rotation 1:1
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local isToggled = false
+local lastHoldTime = 0
+local holdDuration = 0.5 -- Detik untuk deteksi tekan lama
+
+-- Posisi Kamera 1:1 Roblox
+local cameraOffset = Vector3.new(1.7, 2, 0) 
+local targetOffset = Vector3.new(0, 0, 0)
+
+-- --- UI SETUP (CORE GUI) ---
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ShiftLock_Akbar_V4"
+ScreenGui.ResetOnSpawn = false
+pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
+if not ScreenGui.Parent then ScreenGui.Parent = player:WaitForChild("PlayerGui") end
+
+-- --- IKON GEMBOK (UTAMA) ---
+local IconButton = Instance.new("ImageButton")
+IconButton.Name = "ShiftLockIcon"
+IconButton.Image = "rbxassetid://129085988980908" -- Ikon dari link kamu
+IconButton.BackgroundTransparency = 1
+IconButton.Size = UDim2.new(0, 70, 0, 70)
+IconButton.Position = UDim2.new(0.8, 0, 0.5, 0)
+IconButton.ImageColor3 = Color3.fromRGB(0, 255, 0)
+IconButton.Active = true
+IconButton.Draggable = true -- Bisa digeser kemana saja
+IconButton.Parent = ScreenGui
+
+-- --- MENU GUI (DISEMBUNYIKAN AWALNYA) ---
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "ConfigMenu"
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.Size = UDim2.new(0, 260, 0, 240)
+MainFrame.Position = UDim2.new(0.5, -130, 0.5, -120)
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 15)
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 255, 0)
+UIStroke.Thickness = 2
+UIStroke.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Text = "⚙ SHIFT LOCK SETTINGS"
+Title.Font = Enum.Font.GothamBold
+Title.TextColor3 = Color3.fromRGB(0, 255, 0)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Parent = MainFrame
+
+-- --- FUNGSI SLIDER MODEREN ---
+local function CreateSlider(text, min, max, default, pos, callback)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(1, -30, 0, 40)
+    SliderFrame.Position = pos
+    SliderFrame.BackgroundTransparency = 1
+    SliderFrame.Parent = MainFrame
+
+    local Label = Instance.new("TextLabel")
+    Label.Text = text .. ": " .. default
+    Label.Size = UDim2.new(1, 0, 0, 15)
+    Label.TextColor3 = Color3.new(1, 1, 1)
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.BackgroundTransparency = 1
+    Label.Parent = SliderFrame
+
+    local Bar = Instance.new("Frame")
+    Bar.Size = UDim2.new(1, 0, 0, 4)
+    Bar.Position = UDim2.new(0, 0, 0, 25)
+    Bar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Bar.Parent = SliderFrame
+
+    local Fill = Instance.new("Frame")
+    Fill.Size = UDim2.new((default-min)/(max-min), 0, 1, 0)
+    Fill.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    Fill.Parent = Bar
+
+    local Dot = Instance.new("TextButton")
+    Dot.Size = UDim2.new(0, 16, 0, 16)
+    Dot.Position = UDim2.new((default-min)/(max-min), -8, 0.5, -8)
+    Dot.BackgroundColor3 = Color3.new(1,1,1)
+    Dot.Text = ""
+    Dot.Parent = Bar
+    Instance.new("UICorner", Dot).CornerRadius = UDim.new(1,0)
+
+    local dragging = false
+    Dot.MouseButton1Down:Connect(function() dragging = true end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if dragging then
+            local mouseX = UserInputService:GetMouseLocation().X
+            local pct = math.clamp((mouseX - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
+            Dot.Position = UDim2.new(pct, -8, 0.5, -8)
+            Fill.Size = UDim2.new(pct, 0, 1, 0)
+            local val = math.round(min + (max - min) * pct)
+            Label.Text = text .. ": " .. val
+            callback(val)
+        end
+    end)
+end
+
+-- Slider Settings
+CreateSlider("Icon Size", 40, 150, 70, UDim2.new(0, 15, 0, 50), function(v) IconButton.Size = UDim2.new(0, v, 0, v) end)
+CreateSlider("GUI Size", 150, 400, 260, UDim2.new(0, 15, 0, 95), function(v) MainFrame.Size = UDim2.new(0, v, 0, MainFrame.Size.Y.Offset) end)
+CreateSlider("Pos X", -600, 600, 0, UDim2.new(0, 15, 0, 140), function(v) MainFrame.Position = UDim2.new(0.5, v - (MainFrame.Size.X.Offset/2), MainFrame.Position.Y.Scale, MainFrame.Position.Y.Offset) end)
+CreateSlider("Pos Y", -400, 400, 0, UDim2.new(0, 15, 0, 185), function(v) MainFrame.Position = UDim2.new(MainFrame.Position.X.Scale, MainFrame.Position.X.Offset, 0.5, v - (MainFrame.Size.Y.Offset/2)) end)
+
+-- --- LOGIKA TEKAN LAMA & CLICK ---
+IconButton.MouseButton1Down:Connect(function()
+    lastHoldTime = tick()
+end)
+
+IconButton.MouseButton1Up:Connect(function()
+    local holdTime = tick() - lastHoldTime
+    if holdTime >= holdDuration then
+        -- Tekan Lama: Buka/Tutup Menu
+        MainFrame.Visible = not MainFrame.Visible
+    else
+        -- Klik Biasa: Toggle Shift Lock
+        isToggled = not isToggled
+        if isToggled then
+            TweenService:Create(IconButton, TweenInfo.new(0.2), {Size = UDim2.new(0, IconButton.Size.X.Offset + 15, 0, IconButton.Size.Y.Offset + 15)}):Play()
+        else
+            TweenService:Create(IconButton, TweenInfo.new(0.2), {Size = UDim2.new(0, IconButton.Size.X.Offset - 15, 0, IconButton.Size.Y.Offset - 15)}):Play()
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+        end
+    end
+end)
+
+-- --- LOOP SHIFT LOCK (FIXED SMOOTHNESS) ---
+RunService:BindToRenderStep("AkbarSmoothShift", Enum.RenderPriority.Character.Value + 1, function(dt)
+    local char = player.Character
+    local hum = char and char:FindFirstChild("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+    if hum and hrp then
+        if isToggled then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+            
+            -- Pergerakan Karakter (Anti Patah-Patah Berbasis DeltaTime)
+            local lookVector = camera.CFrame.LookVector
+            local targetRotation = CFrame.lookAt(hrp.Position, hrp.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
+            
+            -- Alpha Lerp Responsif
+            hrp.CFrame = hrp.CFrame:Lerp(targetRotation, 1 - math.exp(-22 * dt))
+            
+            -- Camera Offset Smooth
+            targetOffset = targetOffset:Lerp(cameraOffset, 1 - math.exp(-15 * dt))
+            hum.CameraOffset = targetOffset
+        else
+            -- Reset ke normal
+            if hum.CameraOffset.Magnitude > 0.01 then
+                targetOffset = targetOffset:Lerp(Vector3.new(0,0,0), 1 - math.exp(-15 * dt))
+                hum.CameraOffset = targetOffset
+            end
+            if UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter then
+                UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            end
+        end
+    end
+end)
+
+-- Close menu button
+local Close = Instance.new("TextButton")
+Close.Size = UDim2.new(0, 30, 0, 30)
+Close.Position = UDim2.new(1, -35, 0, 5)
+Close.Text = "X"
+Close.TextColor3 = Color3.new(1,1,1)
+Close.BackgroundTransparency = 1
+Close.Parent = MainFrame
+Close.MouseButton1Click:Connect(function() MainFrame.Visible = false end)
+
+print("Shift Lock Akbar V4 Loaded - Long Press Icon to Open Menu!")
